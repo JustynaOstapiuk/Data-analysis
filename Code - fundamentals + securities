@@ -1,6 +1,6 @@
 # Analiza inwestycji w spolkach notowanych na rynku w USA 
 
-dane <- read.csv("C:/Users/Justyna/Desktop/korepetycje/Projekt - Martyna - R - zakonczone/fundamentals.csv")
+dane <- read.csv("C:/Users/Justyna/Desktop/fundamentals.csv")
 View(dane)
 
 # Usuniecie niepotrzenych danych
@@ -104,7 +104,7 @@ abline(v = seq(0, 1800, 100), col = "grey")
 abline(h = seq(0, 35000, 5000), col = "grey")
 
 # Dolaczenie kolejnego zbioru do analizy
-dane1 <- read.csv("C:/Users/Justyna/Desktop/korepetycje/Projekt - Martyna - R - zakonczone/securities.csv")
+dane1 <- read.csv("C:/Users/Justyna/Desktop/securities.csv")
 View(dane1)
 names(dane1)
 
