@@ -1,0 +1,28 @@
+dane <- read.csv("C:/Users/Justyna/Desktop/Projekt/NetflixOriginals.csv")
+
+# 1. Boxplot: movie duration w zaleznosci od gatunku filmu
+boxplot(dane$Runtime~dane$Genre, horizontal = T,
+        main="Czas trwania filmu w zaleznosci od gatunku",
+        xlab="Czas trwania filmu",
+        ylab="Gatunek filmu")
+
+# 2. Ilosc filmww w danych jezykach 
+library(dplyr)
+library(ggplot2)
+jezyki <-dane%>%select(Language)%>%group_by(Language)%>%mutate(count=n())
+jezyki <- distinct(jezyki)
+jezyki%>%ggplot(aes(x=reorder(Language,-count),y=count,fill=Language))+geom_col()+ggtitle("Ilo?? film?w w danych j?zykach")+geom_text(aes(label=count),position=position_stack(vjust=0.5),color="black",size=3)+theme_classic()
+
+                    
+# 3. Ocena filmow w zaleznosci od gatunku
+boxplot(dane$IMDB.Score~dane$Genre, horizontal = F,
+        main="Ocena filmow w zaleznosci od gatunku",
+        xlab="Ocena filmu",
+        ylab="Gatunek filmu")
+
+# 4. Najlepiej oceniony film
+max(dane$IMDB.Score) # najlepiej oceniony film mial 9 punktow
+library(dplyr)
+filter(dane,  IMDB.Score == 9.0)
+# Jest to film o tytule: David Attenborough: A Life on Our Planet
+
