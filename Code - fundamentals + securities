@@ -1,0 +1,648 @@
+# Analiza inwestycji w spolkach notowanych na rynku w USA 
+
+dane <- read.csv("C:/Users/Justyna/Desktop/korepetycje/Projekt - Martyna - R - zakonczone/fundamentals.csv")
+View(dane)
+
+# Usuniecie niepotrzenych danych
+dane <- dane[,-1]
+View(dane)
+
+dim(dane)
+names(dane)
+summary(dane)
+str(dane)
+
+# Zamiana na mln $
+summary(dane[,1:10])
+i <- c(3:5, 7:8, 10:13, 15:23, 25:47, 49:57, 62:75, 78)
+dane[,i] <- dane[,i] / 1000000 
+
+i <- c(7, 30, 33, 54, 67)
+summary(dane[,i])
+
+summary(dane$Capital.Expenditures)
+summary(dane[,"Capital.Expenditures"])
+summary(dane[,7])
+
+attach(dane)
+
+summary(Capital.Expenditures)
+hist(Capital.Expenditures)
+hist(Capital.Expenditures, breaks = 30)
+
+Capital.Expenditures > 0
+sum(Capital.Expenditures > 0)
+sum(Capital.Expenditures == 0)
+sum(Capital.Expenditures < 0)
+
+which(Capital.Expenditures > 0)
+dane[which(Capital.Expenditures > 0),]
+dane[191,1:5]
+
+which(Capital.Expenditures == 0)
+dane[which(Capital.Expenditures == 0),]
+
+plot(Capital.Expenditures)
+plot(sort(Capital.Expenditures))
+sum(Capital.Expenditures < -1000)
+
+detach(dane)
+
+# Usuniecie obserwacji nietypowej
+dane <- dane[-which(dane$Capital.Expenditures > 0),]
+
+# sprawdzenie za jakie lata sa dostepne dane
+summary(dane$For.Year)
+as.factor(dane$For.Year)
+levels(as.factor(dane$For.Year))
+
+# poprawka bledu wprowadzania danych
+sum(dane$For.Year == 1215, na.rm = T)
+which(dane$For.Year == 1215)
+dane[which(dane$For.Year == 1215),]
+dane[which(dane$For.Year==1215),"For.Year"]
+dane[854, "For.Year"]
+dane[which(dane$For.Year == 1215),"Period.Ending"]
+dane[which(dane$For.Year==1215),"For.Year"] <- 2015
+
+# Badamy ile jest obserwacji dla poszczegolnych lat
+summary(dane$For.Year)
+levels(as.factor(dane$For.Year))
+summary(as.factor(dane$For.Year))
+dane$For.Year.cat <- as.factor(dane$For.Year)
+summary(dane$For.Year.cat)
+
+# Dane brakujece uzupelniamy z dat konca okresu sprawozdawczego
+sum(is.na(dane$For.Year))
+which(is.na(dane$For.Year))
+dane[which(is.na(dane$For.Year)),"Period.Ending"]
+sum(is.na(dane[which(is.na(dane$For.Year)),"Period.Ending"]))
+
+dane[which(is.na(dane$For.Year)),"For.Year"] <- 
+  as.numeric(substr(dane[which(is.na(dane$For.Year)), "Period.Ending"], 1, 4))
+
+dane$For.Year.cat <- as.factor(dane$For.Year)
+summary(dane$For.Year.cat)
+
+# Odrzucamy obserwacje z lat z mala liczba obserwacji
+dane$For.Year >= 2012 & dane$For.Year <= 2016
+sum(dane$For.Year >= 2012 & dane$For.Year <= 2016)
+dane <- dane[dane$For.Year >= 2012 & dane$For.Year <= 2016, ]
+
+summary(dane$For.Year.cat)
+dane$For.Year.cat <- as.factor(dane$For.Year)
+summary(dane$For.Year.cat)
+
+# Zmieniamy znak na dodatni
+summary(dane$Capital.Expenditures)
+dane$Capital.Expenditures <- -dane$Capital.Expenditures
+summary(dane$Capital.Expenditures)
+
+hist(dane$Capital.Expenditures, breaks = 30)
+plot(sort(dane$Capital.Expenditures), pch = 19)
+abline(v = seq(0, 1800, 100), col = "grey")
+abline(h = seq(0, 35000, 5000), col = "grey")
+
+# Dolaczenie kolejnego zbioru do analizy
+dane1 <- read.csv("C:/Users/Justyna/Desktop/korepetycje/Projekt - Martyna - R - zakonczone/securities.csv")
+View(dane1)
+names(dane1)
+
+# Czyszczenie zbioru 
+# sprawdzamy ile jest sektorow
+levels(as.factor(dane1$GICS.Sector))
+# sektorow jest 11
+
+# sprawdzamy ile jest podsektorow
+levels(as.factor(dane1$GICS.Sub.Industry))
+# podsektor?w jest 124
+
+# sprawdzamy ile jest lokalizacji
+levels(as.factor(dane1$Address.of.Headquarters))
+# lokalizacji jest 264
+
+# Niekt?re lokalizacje maj? dodane odwo?ania typu [5]
+# Nale?y je zlikwidowa?
+
+# Najpierw sprawdzamy, ktore rekordy zawieraja odwolania typu [5]
+# szukamy znaku "["
+for (i in 1:505) {
+  a <- grep("[", dane1$Address.of.Headquarters[i], fixed = T) 
+  if (length(a) != 0) print(i)
+}
+# znak "[" wystepuje w 4 adresach o indeksach ponizej
+i <- c(57, 75, 225, 413)
+dane1$Address.of.Headquarters[i]
+
+# najpierw wyrzucamy cyfre ze srodka - szukamy cyfry i zamieniamy pusty tekst
+# pozniej zamieniamy znaki [] na pusty tekst
+dane1$Address.of.Headquarters <- 
+  gsub("[]", 
+       "", 
+       gsub("[0123456789]", "", dane1$Address.of.Headquarters),
+       fixed = T)
+
+# w koncowym kroku rozdzielamy pole Address.of.Headquarters na 
+# miasto i panstwo/stan
+zb.pomocniczy <- data.frame(
+  do.call("rbind", strsplit(dane1$Address.of.Headquarters, ", ", fixed = TRUE))
+)
+# wystepuje ostrzezenie wiec trzeba sprawdzic, o co chodzi
+A <- strsplit(dane1$Address.of.Headquarters, ", ", fixed = TRUE)
+A
+length(A)
+B <- unlist(lapply(A, length))
+B
+# rezultat to wektor liczb, w ktorych szukamy indeksu wartosci maksymalnej
+i <- which(B == max(B))
+zb.pomocniczy[i,]
+dane1[i,"Address.of.Headquarters"]
+zb.pomocniczy[i,2] <- zb.pomocniczy[i,3]
+
+# Dodajemy dwie zmienne okreslajace miasto i stan/panstwo
+dane1$Address.City <- zb.pomocniczy[,1]
+dane1$Address.State <- zb.pomocniczy[,2]
+# kasujemy niepotrzebne zmienne pomocnicze
+rm(A,B,zb.pomocniczy)
+
+# liczba miast = 248
+levels(as.factor(dane1$Address.City))
+# liczba stanow/panstw = 48
+levels(as.factor(dane1$Address.State))
+
+# niektore stany wymagaja polaczenia
+which(dane1$Address.State == "NY")
+dane1$Address.State[which(dane1$Address.State == "NY")] <- "New York"
+dane1$Address.State[which(dane1$Address.State == "UT")] <- "Utah"
+dane1$Address.State[which(dane1$Address.State == "UK")] <- "United Kingdom"
+dane1$Address.State[which(dane1$Address.State == "Kingdom of the Netherlands")] <-
+  "Netherlands"
+
+# liczba stanaw/panstw = 44
+levels(as.factor(dane1$Address.State))
+
+# wyrzucenie niepotrzebnych kolumn
+dane1 <- dane1[,-c(3, 6:8)]
+
+# zmiana nazwy GICS.Sector i GICS.Sub.Industry
+names(dane1)[3:4] <- c("Sector", "Sub.Industry")
+
+#sprawdzenie przed po??czeniem tabel danych
+names(dane1)
+names(dane)
+names(dane1)[1] <- names(dane)[1]
+
+
+# laczenie czenie zmiennej dane i dane1 
+dane_stare <- dane
+dane <- merge(dane, dane1)
+
+# sprawdzamy nazwy kolumn i wierszy
+names(dane)
+row.names(dane_stare)[1775]
+row.names(dane)[1775]
+row.names(dane) <- row.names(dane_stare)
+
+# Koncowe porzadkowanie tabeli dane i sprawdzenie 
+# porzadkujemy plik i zamieniamy zmienne na kategorialne
+dane$Ticker.Symbol <- as.factor(dane$Ticker.Symbol)
+length(levels(dane$Ticker.Symbol))
+# mamy dane 447 spolek
+
+dane$Sector <- as.factor(dane$Sector)
+levels(dane$Sector)
+# mamy 11 sektorow
+summary(dane$Sector)
+# liczebnosc w grupach
+
+dane$Sub.Industry <- as.factor(dane$Sub.Industry)
+levels(dane$Sub.Industry)
+# mamy 121 podsektor?w
+summary(dane$Sub.Industry)
+# liczebno?? w grupach
+
+dane$Address.City <- as.factor(dane$Address.City)
+levels(dane$Address.City)
+# mamy 233 miast
+summary(dane$Address.City)
+# liczebnosc w grupach - najwiecej spolek z siedziba w Nowym Jorku!
+
+dane$Address.State <- as.factor(dane$Address.State)
+levels(dane$Address.State)
+# mamy 44 stanow/pa?stw
+sort(summary(dane$Address.State), decreasing = TRUE)
+# liczebnosc w grupach - ale jednak najwiecej spolek z siedziba w Kaliforni!
+
+# sprawdzamy braki danych w nowych zmiennych
+sum(is.na(dane$Security))
+sum(is.na(dane$Sector))
+sum(is.na(dane$Sub.Industry))
+sum(is.na(dane$Address.City))
+sum(is.na(dane$Address.State))
+# widac, ze w tych zmiennych nie brakuje danych
+
+# zapis plikow z oczyszczonymi danymi 
+write.table(dane, "dane oczyszczone.data")
+write.csv2(dane, "dane oczyszczone.csv")
+
+# ponizej wczytujemy dane i je porzadkujemy
+dane_wczytane <- read.csv2("dane oczyszczone.csv")
+row.names(dane_wczytane) <- dane_wczytane[,1]
+dane_wczytane <- dane_wczytane[,-1]
+
+# usuwamy niepotrzebne zmienne
+rm(dane_wczytane, dane_stare, a)
+
+# Analiza graficzna danych 
+names(dane)
+
+attach(dane)
+plot(Capital.Expenditures~For.Year.cat)
+plot(Capital.Expenditures~For.Year.cat, outline = F)
+table(For.Year.cat)
+aggregate( Capital.Expenditures , by=list(For.Year.cat) , FUN=summary)
+aggregate( Capital.Expenditures , by=list(For.Year.cat) , FUN=length)
+
+aggregate( Capital.Expenditures , by=list(For.Year.cat, Sector) , FUN=length)
+aggregate( Capital.Expenditures , by=list(Sector, For.Year.cat) , FUN=length)
+
+# Zwiazek z Total.Revenue 
+
+plot(Capital.Expenditures~Total.Revenue)
+abline(lm(Capital.Expenditures~Total.Revenue), col = "blue")
+
+plot(Capital.Expenditures~Total.Revenue, col = For.Year.cat)
+abline(lm(Capital.Expenditures~Total.Revenue))
+
+plot(Capital.Expenditures~Total.Revenue, col = For.Year.cat,
+     xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(lm(Capital.Expenditures~Total.Revenue))
+
+# analiza pojedynczego roku
+plot(Capital.Expenditures[For.Year==2012]~Total.Revenue[For.Year==2012], 
+     col = "blue", xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(
+  lm(Capital.Expenditures[For.Year==2012]~Total.Revenue[For.Year==2012]), 
+  col = "black")
+
+Rok2012 <- For.Year==2012
+Rok2013 <- For.Year==2013
+Rok2014 <- For.Year==2014
+Rok2015 <- For.Year==2015
+Rok2016 <- For.Year==2016
+
+plot(Capital.Expenditures[Rok2013]~Total.Revenue[Rok2013], 
+     col = "darkblue", xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(
+  lm(Capital.Expenditures[Rok2013]~Total.Revenue[Rok2013]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2014]~Total.Revenue[Rok2014], 
+     col = "darkgreen", xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(
+  lm(Capital.Expenditures[Rok2014]~Total.Revenue[Rok2014]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2015]~Total.Revenue[Rok2015], 
+     col = "orange", xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(
+  lm(Capital.Expenditures[Rok2015]~Total.Revenue[Rok2015]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2016]~Total.Revenue[Rok2016], 
+     col = "red", xlim = c(0, 100000), ylim=c(0, 10000) )
+abline(
+  lm(Capital.Expenditures[Rok2016]~Total.Revenue[Rok2016]), 
+  col = "black")
+
+
+# Zwiazek z Long.Term.Debt 
+
+plot(Capital.Expenditures~Long.Term.Debt)
+abline(lm(Capital.Expenditures~Long.Term.Debt), col = "blue")
+
+plot(Capital.Expenditures~Long.Term.Debt, col = For.Year.cat)
+abline(lm(Capital.Expenditures~Long.Term.Debt))
+
+plot(Capital.Expenditures~Long.Term.Debt, col = For.Year.cat,
+     xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(lm(Capital.Expenditures~Long.Term.Debt))
+
+plot(Capital.Expenditures[Rok2012]~Long.Term.Debt[Rok2012], 
+     col = "blue", xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(
+  lm(Capital.Expenditures[Rok2012]~Long.Term.Debt[Rok2012]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2013]~Long.Term.Debt[Rok2013], 
+     col = "darkblue", xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(
+  lm(Capital.Expenditures[Rok2013]~Long.Term.Debt[Rok2013]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2014]~Long.Term.Debt[Rok2014], 
+     col = "darkgreen", xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(
+  lm(Capital.Expenditures[Rok2014]~Long.Term.Debt[Rok2014]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2015]~Long.Term.Debt[Rok2015], 
+     col = "orange", xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(
+  lm(Capital.Expenditures[Rok2015]~Long.Term.Debt[Rok2015]), 
+  col = "black")
+
+plot(Capital.Expenditures[Rok2016]~Long.Term.Debt[Rok2016], 
+     col = "red", xlim = c(0, 30000), ylim=c(0, 6000) )
+abline(
+  lm(Capital.Expenditures[Rok2016]~Long.Term.Debt[Rok2016]), 
+  col = "black")
+
+
+# Inwestycje wg sektorow 
+
+plot(Capital.Expenditures~Sector)
+plot(Capital.Expenditures~Sector, outline = F)
+
+levels(Sector)
+cor(Capital.Expenditures, Fixed.Assets)
+cor(Capital.Expenditures, Total.Assets)
+cor(Capital.Expenditures, Total.Revenue)
+
+# odnosimy CAPEX do zmiennej skalujacej ale skorelowanej
+# aby wprowadzic nowa zmienna lub zmienic dane musimy odlaczyc tabele danych
+detach(dane)
+dane$CAPEX..Fix.Asset <- dane$Capital.Expenditures/dane$Fixed.Assets
+
+# sprawdzamy dane
+summary(dane$CAPEX..Fix.Asset)
+summary(dane$Capital.Expenditures)
+summary(dane$Fixed.Assets)
+
+# sprawdzamy ile jest brakujacych danych
+sum(is.na(dane$CAPEX..Fix.Asset))
+sum(is.infinite(dane$CAPEX..Fix.Asset))
+
+# sprawdzamy z czego to wynika
+dane$Capital.Expenditures[which(is.na(dane$CAPEX..Fix.Asset))]
+dane$Fixed.Assets[which(is.na(dane$CAPEX..Fix.Asset))]
+# w miejsca bledow podstawiamy 0
+dane$CAPEX..Fix.Asset[which(is.na(dane$CAPEX..Fix.Asset))] <- 0
+
+# to samo dla wartosci nieskonczonych
+dane$Capital.Expenditures[which(is.infinite(dane$CAPEX..Fix.Asset))]
+dane$Fixed.Assets[which(is.infinite(dane$CAPEX..Fix.Asset))]
+dane$CAPEX..Fix.Asset[which(is.infinite(dane$CAPEX..Fix.Asset))] <- 0
+
+attach(dane)
+
+# porownujemy dwie zmienne opisujace inwestycje rzeczowe w spolkach
+plot(Capital.Expenditures~Sector)
+plot(CAPEX..Fix.Asset~Sector)
+plot(Capital.Expenditures~Sector, outline = T,
+     main = "Lata 2012-2016")
+plot(CAPEX..Fix.Asset~Sector, outline = T,
+     main = "Lata 2012-2016")
+plot(CAPEX..Fix.Asset~Sector, outline = T, ylim = c(0, 0.8),
+     main = "Lata 2012-2016")
+levels(Sector)
+
+plot(CAPEX..Fix.Asset[Rok2012]~Sector[Rok2012], outline = F, ylim = c(0, 0.8),
+     main = "Rok 2012")
+plot(CAPEX..Fix.Asset[Rok2013]~Sector[Rok2013], outline = F, ylim = c(0, 0.8),
+     main = "Rok 2013")
+plot(CAPEX..Fix.Asset[Rok2014]~Sector[Rok2014], outline = F, ylim = c(0, 0.8),
+     main = "Rok 2014")
+plot(CAPEX..Fix.Asset[Rok2015]~Sector[Rok2015], outline = F, ylim = c(0, 0.8),
+     main = "Rok 2015")
+plot(CAPEX..Fix.Asset[Rok2016]~Sector[Rok2016], outline = F, ylim = c(0, 0.8),
+     main = "Rok 2016")
+
+ConsDiscr <- Sector == "Consumer Discretionary"      
+ConsStaples <- Sector == "Consumer Staples"
+Energy <- Sector == "Energy"
+Financials <- Sector == "Financials"                 
+Health <- Sector == "Health Care" 
+Industrials <- Sector == "Industrials"                
+IT <- Sector == "Information Technology"
+Materials <- Sector == "Materials"                  
+RealEstate <- Sector == "Real Estate"
+Telecomm <- Sector == "Telecommunications Services"
+Utilities <- Sector == "Utilities"                
+
+hist(CAPEX..Fix.Asset[Health], breaks = 30)
+hist(CAPEX..Fix.Asset[IT], breaks = 30)
+
+hist(CAPEX..Fix.Asset[Health & Rok2012], breaks = 30)
+hist(CAPEX..Fix.Asset[Health & Rok2013], breaks = 30)
+hist(CAPEX..Fix.Asset[Health & Rok2014], breaks = 30)
+hist(CAPEX..Fix.Asset[Health & Rok2015], breaks = 30)
+hist(CAPEX..Fix.Asset[Health & Rok2016], breaks = 30)
+
+aggregate(Capital.Expenditures, by=list(For.Year.cat, Sector), FUN=length)
+
+# Badanie normalnosci rozkladu
+# Wartosc p-value > 0.05 oznacza, ze rozk?ad danych nie rozni sie znaczaco od rozkladu normalnego. 
+shapiro.test(CAPEX..Fix.Asset[Health])
+shapiro.test(CAPEX..Fix.Asset[IT])
+
+# test na brak roznicy srednich w dwoch populacjach 
+t.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT])
+# H0: srednia jest identyczna
+# INTERPRETACJA: Jezli wartosc p jest nizsza lub rowna poziomowi 
+# istotnosci 0,05, mozemy odrzucic hipoteze zerowa i zaakceptowac hipoteze
+# alternatywna. Innymi slowy, mozemy stwierdzic, ze srednie wartosci grup A i B
+# znacznie sie roznia.
+
+t.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT], alternative = "less")
+# H0 mean(CAPEX..Fix.Asset[Health]) >= mean(CAPEX..Fix.Asset[IT])
+# INTERPRETACJA: Jezli wartosc p jest nizsza lub rowna poziomowi 
+# istotnosci 0,05, mozemy odrzucic hipoteze zerowa i zaakceptowac hipoteze
+# alternatywna. Innymi slowy, mozemy stwierdzic, ze srednia wartosc grupy A 
+# jest istotnie mniejsze niz B.
+
+t.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT], alternative = "greater")
+# H0 mean(CAPEX..Fix.Asset[Health]) <= mean(CAPEX..Fix.Asset[IT])
+# INTERPRETACJA: Jezli wartosc p jest nizsza lub rowna poziomowi 
+# istotnosci 0,05, mozemy odrzucic hipoteze zerowa i zaakceptowac hipoteze
+# alternatywna. Innymi slowy, mozemy stwierdzic, ze nie mozna odrzucic
+# stwierdzenia, ze srednia wartosc grupy A jest istotnie mniejsze niz B.
+
+# wykres - boxplot
+boxplot(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT], outline = T, 
+        ylim = c(0, 0.8), main = "Lata 2012-2016", names=c("Health","IT"))
+
+# odpowiednik testu t, gdy brak rozkladu normalnego 
+wilcox.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT])
+
+summary(CAPEX..Fix.Asset[Health])
+summary(CAPEX..Fix.Asset[IT])
+
+wilcox.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT], 
+            alternative = "l")
+
+wilcox.test(CAPEX..Fix.Asset[Health], CAPEX..Fix.Asset[IT], 
+            alternative = "g")
+
+detach(dane)
+
+# Hipoteza nr 1 - wska?nik inwestycji - firmy male a firmy duze 
+
+attach(dane)
+summary(Total.Revenue) # Analizujemy rozklad zmiennej Total.Revenue
+dane$Firmy.duze <- dane$Total.Revenue > median(dane$Total.Revenue) # Identyfikujemy firmy duze i male
+dane$Security[dane$Firmy.duze] # Wyswietlamy nazwy firm duzych
+dane$Security[!dane$Firmy.duze]  # Wyswietlamy nazwy firm malych
+
+summary(dane$CAPEX..Fix.Asset[dane$Firmy.duze]) # Analizujemy rozklad zmiennej CAPEX..Fix.Asset dla firm duzych
+summary(dane$CAPEX..Fix.Asset[!dane$Firmy.duze]) # Analizujemy rozklad zmiennej CAPEX..Fix.Asset dla firm malych
+
+# Badanie normalnosci rozkladu
+# Warto?? p-value > 0.05 oznacza, ?e rozk?ad danych nie r??ni si? znacz?co od rozk?adu normalnego. 
+shapiro.test(CAPEX..Fix.Asset[dane$Firmy.duze])$p.value
+# p-value 3.950647e-35 < 0.05 -> rozk?ad danych dla du?ych firm r??ni si? od rozk?adu normalnego 
+shapiro.test(CAPEX..Fix.Asset[!dane$Firmy.duze])$p.value
+# p-value 3.585543e-37 < 0.05 -> rozk?ad danych dla ma?ych firm r??ni si? od rozk?adu normalnego 
+
+# By zbada? hipotez? o braku r??nicy ?rednich w dw?ch populacjach pos?u?ymy si? testem Wilcoxona 
+# (brak rozk?adu normalnego dla danych dotyczacych duzych i malych firm)
+
+# test na brak r??nicy ?rednich w dw?ch populacjach - test Wilcoxona
+
+# H0: ?rednia jest identyczna dla du?ych i ma?ych firm 
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e ?rednie warto?ci grup A i B
+# znacznie si? r??ni?.
+
+wilcox.test(CAPEX..Fix.Asset[dane$Firmy.duze], CAPEX..Fix.Asset[!dane$Firmy.duze])$p.value
+
+# p-value 2.365419e-09 < 0.05 -> mamy podstawy do odrzucenia H0 i przyj?cia H1 -> ?rednia warto?? grupy A - du?e firmy 
+# znacznie r??ni si? od ?redniej B - ma?e firmy. 
+
+
+# H0 mean(CAPEX..Fix.Asset[dane$Firmy.duze]) >= mean(CAPEX..Fix.Asset[!dane$Firmy.duze])
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e ?rednia warto?? grupy A 
+# jest istotnie mniejsze ni? B.
+
+wilcox.test(CAPEX..Fix.Asset[dane$Firmy.duze], CAPEX..Fix.Asset[!dane$Firmy.duze], 
+            alternative = "l")$p.value
+
+# p-value 1.182709e-09 < 0.05 -> mamy podstawy do odrzucenia H0 i przyj?cia H1 -> nie mo?na przyj??
+# stwierdzenia, ?e ?rednia warto?? grupy A - du?e firmy jest istotnie >= ni? B - ma?e firmy.
+
+# H0 mean(CAPEX..Fix.Asset[dane$Firmy.duze]) <= mean(CAPEX..Fix.Asset[!dane$Firmy.duze])
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e nie mo?na odrzuci? 
+# stwierdzenia, ?e ?rednia warto?? grupy A jest istotnie mniejsze ni? B.
+wilcox.test(CAPEX..Fix.Asset[dane$Firmy.duze], CAPEX..Fix.Asset[!dane$Firmy.duze], 
+            alternative = "g")$p.value
+
+# p-value 1 > 0.05 -> brak podstaw do odrzucenia H0 -> ?rednia warto?? grupy A - du?e firmy jest istotnie 
+# <= ni? B - ma?e firmy 
+
+# wykres 
+boxplot(CAPEX..Fix.Asset[dane$Firmy.duze], CAPEX..Fix.Asset[!dane$Firmy.duze], outline = T, 
+        ylim = c(0, 0.8), main = " Wska?nik inwestycji - firmy ma?e a firmy du?e ", names=c("Du?e firmy","Ma?e firmy"))
+
+# Wykres pokazuje, ?e ?rednie obydwu grup r??ni? si? oraz ?rednia wska?nika inwestycji dla ma?ych firm jest wi?ksza ni? dla du?ych firm.
+
+# Hipoteza nr 2 - wska?nik inwestycji - firmy sektora x w roku 2014 a firmy tego sektora w roku 2015
+# wybieramy sektor Real Estate
+# Badanie normalno?ci rozk?adu
+# Warto?? p-value > 0.05 oznacza, ?e rozk?ad danych nie r??ni si? znacz?co od rozk?adu normalnego. 
+shapiro.test(CAPEX..Fix.Asset[RealEstate])$p.value
+# p-value 1.655479e-10 < 0.05 -> s? podstawy do odrzucenia H0 i przyj?cia H1 -> rozk?ad danych r??ni si? znacz?co od rozk?adu normalnego
+shapiro.test(CAPEX..Fix.Asset[RealEstate & Rok2014])$p.value
+# p-value 4.065392e-05 < 0.05 -> s? podstawy do odrzucenia H0 i przyj?cia H1 -> rozk?ad danych r??ni si? znacz?co od rozk?adu normalnego
+shapiro.test(CAPEX..Fix.Asset[RealEstate & Rok2015])$p.value
+# p-value 0.005294016 < 0.05 -> s? podstawy do odrzucenia H0 i przyj?cia H1 -> rozk?ad danych r??ni si? znacz?co od rozk?adu normalnego
+
+# By zbada? hipotez? o braku r??nicy ?rednich w dw?ch populacjach pos?u?ymy si? testem Wilcoxona 
+# (brak rozk?adu normalnego dla danych dotyczacych sektora Real Estate w roku 2014 i 2015)
+
+# test na brak r??nicy ?rednich w dw?ch populacjach - test Wilcoxona
+
+# H0: ?rednia jest identyczna dla sektora Real Estate w roku 2014 i 2015
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e ?rednie warto?ci grup A i B
+# znacznie si? r??ni?.
+
+wilcox.test(CAPEX..Fix.Asset[RealEstate & Rok2014], CAPEX..Fix.Asset[RealEstate & Rok2015])$p.value
+
+# p-value 1 > 0.05 -> brak podstaw do odrzucenia H0 -> ?rednia jest identyczna dla sektora Real Estate w roku 2014 i 2015
+
+# wykres 
+boxplot(CAPEX..Fix.Asset[RealEstate & Rok2014], CAPEX..Fix.Asset[RealEstate & Rok2015], outline = T, 
+        ylim = c(0, 0.5), main = " Wska?nik inwestycji - firmy sektora Real Estate w roku 2014 oraz 2015 ", names=c("2014","2015"))
+# Wykres pokazuje, ?e ?rednie obydwu grup nie r??ni? si?. Wska?nik inwestycji dla sektora Real Estate w roku 2014 i 2015 jest identyczny.
+detach(dane)
+
+# Hipoteza nr 3 - kwota inwestycji - firmy du?e i firmy ma?e 
+attach(dane)
+dane$Firmy.duze <- dane$Total.Revenue > median(dane$Total.Revenue) # Identyfikujemy firmy du?e i ma?e
+dane$Security[dane$Firmy.duze] # Wy?wietlamy nazwy firm du?ych
+dane$Security[!dane$Firmy.duze] # Wy?wietlamy nazwy firm ma?ych
+
+summary(dane$Capital.Expenditures[dane$Firmy.duze]) # Analizujemy rozk?ad zmiennej Capital.Expenditures dla firm du?ych
+summary(dane$Capital.Expenditures[!dane$Firmy.duze]) # Analizujemy rozk?ad zmiennej Capital.Expenditures dla firm ma?ych
+
+# Badanie normalno?ci rozk?adu
+# Warto?? p-value > 0.05 oznacza, ?e rozk?ad danych nie r??ni si? znacz?co od rozk?adu normalnego. 
+shapiro.test(Capital.Expenditures[dane$Firmy.duze])$p.value
+# p-value 5.166128e-45 < 0.05 -> rozk?ad danych dla du?ych firm r??ni si? od rozk?adu normalnego 
+shapiro.test(Capital.Expenditures[!dane$Firmy.duze])$p.value
+# p-value 1.936677e-41 < 0.05 -> rozk?ad danych dla ma?ych firm r??ni si? od rozk?adu normalnego 
+
+# By zbada? hipotez? o braku r??nicy ?rednich w dw?ch populacjach pos?u?ymy si? testem Wilcoxona 
+# (brak rozk?adu normalnego dla danych dotyczacych duzych i malych firm)
+
+# test na brak r??nicy ?rednich w dw?ch populacjach - test Wilcoxona
+
+# H0: ?rednia jest identyczna dla du?ych i ma?ych firm 
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e ?rednie warto?ci grup A i B
+# znacznie si? r??ni?.
+
+wilcox.test(Capital.Expenditures[dane$Firmy.duze], Capital.Expenditures[!dane$Firmy.duze])$p.value
+
+# p-value 1.593365e-82 < 0.05 -> mamy podstawy do odrzucenia H0 i przyj?cia H1 -> ?rednia warto?? grupy A - du?e firmy 
+# znacznie r??ni si? od ?redniej B - ma?e firmy. 
+
+
+# H0 mean(Capital.Expenditures[dane$Firmy.duze]) >= mean(Capital.Expenditures[!dane$Firmy.duze])
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e ?rednia warto?? grupy A 
+# jest istotnie mniejsze ni? B.
+
+wilcox.test(Capital.Expenditures[dane$Firmy.duze], Capital.Expenditures[!dane$Firmy.duze], 
+            alternative = "l")$p.value
+
+# p-value 1 > 0.05 -> brak podstaw do odrzucenia H0 -> ?rednia warto?? grupy A - du?e firmy 
+# jest istotnie >= ni? B - ma?e firmy.
+
+# H0 mean(Capital.Expenditures[dane$Firmy.duze]) <= mean(Capital.Expenditures[!dane$Firmy.duze])
+# INTERPRETACJA: Je?li warto?? p jest ni?sza lub r?wna poziomowi 
+# istotno?ci 0,05, mo?emy odrzuci? hipotez? zerow? i zaakceptowa? hipotez?
+# alternatywn?. Innymi s?owy, mo?emy stwierdzi?, ?e nie mo?na odrzuci? 
+# stwierdzenia, ?e ?rednia warto?? grupy A jest istotnie mniejsze ni? B.
+wilcox.test(Capital.Expenditures[dane$Firmy.duze], Capital.Expenditures[!dane$Firmy.duze],
+            alternative = "g")$p.value
+
+# p-value 7.966826e-83 > 0.05 -> s? podstawy do odrzucenia H0 i przyj?cia H1 -> nie mo?na przyj??
+# stwierdzenia, ?e ?rednia warto?? grupy A - du?e firmy jest istotnie <= ni? B - ma?e firmy.
+
+# wykres 
+boxplot(Capital.Expenditures[dane$Firmy.duze], Capital.Expenditures[!dane$Firmy.duze], outline = T, 
+        ylim = c(0, 10000), main = " Kwota inwestycji - firmy ma?e a firmy du?e ", names=c("Du?e firmy","Ma?e firmy"))
+detach(dane)
+
+# Wykres pokazuje, ze firmy duze przeznaczaja duzo wieksze kwoty na inwestycje w porownaniu do firm malych.
+
+
