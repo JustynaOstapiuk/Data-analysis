@@ -1,0 +1,162 @@
+# wczytujemy dane
+dane <- read.csv("C:/Users/Justyna/Downloads/USA_Housing.csv", header = T)
+head(dane)
+
+# dane pochodz? z tej strony https://www.kaggle.com/faressayah/linear-regression-house-price-prediction/?select=USA_Housing.csv
+
+# populacja: rynek nieruchomo?ci w Stanach Zjednoczonych
+# zmienna obja?niana zale?na (y): cena sprzedanego domu 
+# zmienne obja?niaj?ce niezale?ne (x):
+# X1=dochody mieszka?cow z miejscowosci gdzie zlokalizowany jest dom
+# X2=wiek domu 
+# X3=liczba pokoi
+# X4=liczba sypialni
+# X5=ilosc mieszkancow miasta
+# X6=adres domu
+
+# usuwamy 6 kolumne z adresami, gdy? jest ona nam niepotrzebna
+dane <- dane[,-7]
+# zmieniamy nazwy kolumn na bardziej czytelne 
+colnames(dane) <- c( "X1", "X2", "X3", "X4", "X5", "Y")
+head(dane)
+# sprawdzamy czy istnieje korelacja pomiedzy zmiennymi X a Y 
+cor.test(dane$X1, dane$Y) # 0.6397338 -> dosy? silna korelacja dodatnia -> im wi?ksze dochody mieszka?cow tym wy?sza cena domu 
+cor.test(dane$X2, dane$Y) # 0.4525425 -> ?rednia korelacja dodatnia 
+cor.test(dane$X3, dane$Y) # 0.3356645  -> niska korelacja dodatnia
+cor.test(dane$X4, dane$Y) # 0.5710049 -> dosy? silna korelacja dodatnia -> im wi?ksza liczba sypialni tym wy?sza cena domu 
+cor.test(dane$X5, dane$Y) # 0.4085559 -> niska korelacja dodatnia
+
+# sprawdzmy normalnosc rokladu zmiennych
+hist(dane$X1)
+shapiro.test(dane$X1)$p.value # 0.4579242 -> rozk?ad normalny
+hist(dane$X2)
+shapiro.test(dane$X2)$p.value # 0.6729841 -> rozk?ad normalny
+hist(dane$X3)
+shapiro.test(dane$X3)$p.value # 0.4579242 ->  rozk?ad normalny
+hist(dane$X4)
+shapiro.test(dane$X4)$p.value # 8.372065e-39 ->  brak rozk?adu normalnego
+hist(dane$X5)
+shapiro.test(dane$X5)$p.value # 0.3012798 -> rozk?ad normalny
+hist(dane$Y)
+shapiro.test(dane$Y)$p.value # 0.9494733 -> rozk?ad normalny 
+
+# wykres najsilniejszej korelacji 
+plot(dane$X1~dane$Y)
+# wykres potwierdza korelacje pomi?dzy zmiennymi
+proba.ucz <- dane[1:4000,] # 80% danych 
+proba.test <- dane[4001:5000,] # 20 % danych
+
+# przechodzimy do tworzenia modelu regresji liniowej 
+# model regresji liniowej 
+model = lm(Y~X1 + X2 + X3 + X4 + X5, data = proba.ucz) 
+summary(model)
+# zmienna X4 nie jest istotna statystycznie, gdy? jej p-value jako jedyne jest powy?ej 0.05 
+# pozosta?e zmienne przyjmujemy jako istotne statystycznie
+
+# usuwamy zmienn? X4 z modelu 
+model = lm(Y~X1 + X2 + X3 + X5, data = dane) 
+summary(model)
+
+# p-warto?ci < 0.05 wskazuj? na istotno?? statystyczn? zmiennych 
+# Multiple R-squared: 0.918 - warto?? R kwadrat - model wyja?nia 91.80% zmienno?ci zmiennej obja?nianej,
+# im warto?? bli?sza 1 tym lepiej model opisuje rzeczywisto??
+# model ten zosta? poprawnie dopasowany 
+summary(model)$f
+# F-statistic: 13979.48 on 4 and 4995 DF,  p-value: < 2.2e-16
+# warto?? F empiryczna :  13979.48
+# statystyka F i warto?? p testu F - mi?dzy zmienn? obja?nian? a przynajmniej jedn? ze zmiennych obja?niaj?cych 
+# uwzglnionych w modelu zachodzi zale?no?? liniowa
+
+# sprawdzamy warto?? F krytycznego, przy poziomie istotno?ci 0.05 i przy 4 i 409 stopniach swobody
+qf(0.95, 4, 4995) 
+# 2.373711
+# 13979.48 > 2.373711 F empiryczne jest wi?ksze od F krytycznego  
+# Wniosek: mi?dzy zmienn? obja?nian? a przynajmniej jedn? ze zmiennych obja?niaj?cych uwzglnionych w modelu zachodzi zale?no?? liniowa
+
+# analiza resztowa 
+# normalno??
+# H0: reszty maj? rozk?ad normalny 
+# H1: reszty nie maj? rozk?adu normalnego 
+shapiro.test(model$residuals)$p.value
+# p-value = 0.3409849 > poziomu istotno?ci 0.05 -> brak podstaw do odrzucenia H0 -> reszty maj? rozk?ad normalny
+
+# stabilno?? wariancji 
+# H0: reszty maj? stabiln? wariancj? (homoskedastyczno??)
+# H1: reszty nie maj? stabilnej wariancji (heteroskedastyczno??)
+#install.packages(lmtest)
+library(lmtest)
+gqtest(model, order.by = model$fitted.values)
+#  p-value = 0.9415 > 0.05 -> brak podstaw do odrzucenia H0  -> reszty maj? stabiln? wariancj? 
+
+# autokorelacja 
+# H0: brak autokorelacji reszt 
+# H1: wyst?puje autokorelacja reszt 
+dwtest(model, order.by = model$fitted.values)
+# p-value = 0.8203 > 0.05 -> brak podstaw do odrzucenia H0  -> nie wyst?puje autokorelacja reszt 
+
+# H0: model ma poprawn? specyfikacj?
+# H1: model nie ma poprawnej specyfikacji 
+resettest(model)
+# p-value = 0.4641 > 0.05 -> brak podstaw do odrzucenia H0 -> za?o?enie o liniowo?ci postaci modelu jest spe?nione
+
+# prognoza dla modelu liniowego 
+nowe_dane <- data.frame( X1 = 100000,
+                           X2 = 5,
+                           X3 = 7,
+                           X5 = 1000
+  
+)
+predict(model, newdata = nowe_dane)
+# 1215386  -> cena domu dla powyzszej prognozy (przy dochodach 100000, wieku domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000)
+
+# przedzia?y ufno?ci 
+nowe_dane <- data.frame( X1 = 100000,
+                         X2 = 5,
+                         X3 = 7,
+                         X5 = 1000
+                         
+)
+predict(model, newdata = nowe_dane, interval = "confidence")
+# fit     lwr     upr
+# 1 1215386 1201934 1228838
+# 
+# fit: przewidywane warto?ci ceny domu przy dochodach 100000, wieku domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000
+# lwr oraz upr: odpowiednio dolna i g?rna granica ufno?ci dla warto?ci oczekiwanych. Domy?lnie funkcja wyznacza granice ufno?ci 95%.
+# 95% przedzia? ufno?ci zwi?zany z przychodami 100000, wiekiem domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000 wynosi (1201934, 1228838).
+# Oznacza to, ?e wed?ug naszego modelu cena domu przy dochodach 100000, wieku domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000
+# wyniesie ?rednio od 1201934 do 1228838
+
+# przedzia?y prognozy 
+nowe_dane <- data.frame( X1 = 100000,
+                         X2 = 5,
+                         X3 = 7,
+                         X5 = 1000
+                         
+)
+predict(model, newdata = nowe_dane, interval = "prediction")
+# fit     lwr     upr
+# 1 1215386 1016614 1414159
+# 95% przedzia?y predykcji zwi?zane z cen? domu przy dochodach 100000, wieku domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000
+# wynosz? od 1016614 do 1414159. Oznacza to, ?e wed?ug naszego modelu 95% dom?w przy dochodach 100000, wieku domu 5, liczbie pokoi 7 oraz liczbie mieszkancow 1000,
+# bedzie kosztowac w przedziale od 1016614 do 1414159.
+
+
+# metoda drzewkowa 
+library(rpart)
+# install.packages("rattle")
+library(rattle)
+# wczytamy wszyzstkie obserwacje ale uzyjemy tylko 100 dla uproszczenia
+subset <- c(1:5000,100)
+model <- rpart(Y ~ X1 + X2 + X3 + X5, data = dane, subset = subset)
+model
+# wykres drzewa
+plot(model, compress = TRUE)
+# podpisy
+text(model, cex = 0.7, use.n = TRUE, fancy = FALSE, all = TRUE)
+
+summary(model)
+
+# tutaj znajduje sie opis drzew decyzyjnych jak je rozumiec 
+# http://zsi.tech.us.edu.pl/~nowak/ed/R_dd_as.pdf
+# nie bardzo wiem jak moglabym opisac te drzewo bo w zasadzie malo tu widac apropo wplywu zmiennych x na y 
+# dlatego model regresji liniowej bardzo ladnie opisywal te zaleznosc i to wlasnie ten model jest lepszy i jego powinnismy wybrac 
