@@ -1,0 +1,152 @@
+# Data source: https://www.kaggle.com/open-powerlifting/powerlifting-database
+
+data <- read.csv("C:/Users/Justyna/Desktop/openpowerlifting.csv/openpowerlifting.csv")
+head(data)
+
+# Data Description:
+# Powerlifting is a sport in which competitors compete to lift the most weight for their class in three separate barbell lifts: the Squat, Bench, and Deadlift.
+
+# Description of the columns:
+# Name - name and surname of the competitor
+# Sex – sex of the competitor (M – male, F - female)
+# Age - the age of the lifter in Years
+# AgeClass - the age class in which the lifter competed
+# BodyweightKg - The lifter's bodyweight in kilograms.
+# WeightClassKg - The weight class in which the lifter competed. Federations may break competition down by different weight classes. The lifter's bodyweight may not exceed this number at the time of weighing in.
+# Equipment - the type of equipment that was worn. Raw (No equipment), Wraps(Knee Wraps worn), Single Ply (Single layer of supportive equipment) and Multi Ply (Multiple layers of supportive equipment)
+# Best3SquatKg - best score in kilograms - squat 
+# Best3BenchKg - best score in kilograms - bench
+# Best3DeadliftKg - best score in kilograms - deadlift
+# TotalKg - sum of the best results in kilograms from the squat, bench and deadlift
+# Tested - is the athlete natural or does he admit to doping?
+
+# The purpose of the analysis:
+# What equipment is the most used?
+# Are there age differences between natural and doping contestants?
+# Does total depend on age and weight?
+# Total depending on gender
+
+attach(data)
+
+# leaving only the necessary columns
+library(dplyr)
+new_data <- subset(data,
+                   select=c(Name, Sex, Age, AgeClass, BodyweightKg, WeightClassKg, Equipment, Best3SquatKg, 
+                            Best3BenchKg, Best3DeadliftKg, TotalKg, Tested))
+detach(data)
+attach(new_data)
+head(new_data)
+
+# What equipment is the most used?
+library(ggplot2)
+library(ggthemes)
+options(scipen = 999)
+
+equipment <-new_data%>%select(Equipment)%>%group_by(Equipment)%>%mutate(count=n())
+equipment <- distinct(equipment)
+equipment%>%ggplot(aes(x=reorder(Equipment,-count),y=count,fill=Equipment))+geom_col()+ggtitle("Equipment")+geom_text(aes(label=count),position=position_stack(vjust=0.5),color="black",size=4)+theme_fivethirtyeight() 
+
+# The most used equipment is Single-ply. 
+# Powerlifting suits are made with layers of high tensile strength fabric, which means they are designed to stretch 
+# to a given point and then snap back into place quickly and demandingly. 
+# Single-Ply means the suit has one layer of this fancy fabric, whereas Multi-Ply means two layers or more.
+
+# dividing participants into natural and admitting to doping
+# players using doping
+new_data$Tested[new_data$Tested != "Yes"] = "Enhanced"
+
+enhanced_competitors <- filter(new_data,
+              Tested == "Enhanced")
+
+# natural competitors
+new_data$Tested[new_data$Tested == "Yes"] = "Natural"
+natural_competitors <- filter(new_data,
+                              Tested == "Natural")
+
+library(hrbrthemes)
+
+length(natural_competitors$Age)
+length(natural_competitors$Tested)
+length(enhanced_competitors$Age)
+length(enhanced_competitors$Tested)
+# There are over 3 times more natural competitors than there are competitors who admit to using doping
+
+# a set of data containing the age of competitors, divided into natural and doped players
+data <- data.frame(
+  Tested = c(rep("Enhanced", 329462), rep("Natural", 1093892) ),
+  Age = c(enhanced_competitors$Age, natural_competitors$Age)
+)
+
+data
+
+p <- data %>%
+  ggplot( aes(x=Age, fill=Tested)) +
+  geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity') +
+  theme_ipsum() + ggtitle("Age distribution with the division into natural and doping players")
+  labs(fill="")
+print(p)
+
+summary(enhanced_competitors$Age)
+summary(natural_competitors$Age)
+par(mfrow=c(1,2))
+boxplot(enhanced_competitors$Age, title(xlab = "Athletes with doping"))
+boxplot(natural_competitors$Age, title(xlab = "Athletes without doping"))
+par(mfrow=c(1,1))
+# average age for natural athletes is around 31 years and average age for doping players around 33 years
+# the age distribution of players is very similar
+# doping does not change the age range of players
+
+# Does total depend on age and weight?
+data <- data.frame(
+  Total = c(new_data$TotalKg),
+  Age = c(new_data$Age),
+  Weight = c(new_data$BodyweightKg)
+)
+
+data
+
+cor.test(data$Total, data$Age)
+cor.test(data$Total, data$Weight)
+# in both cases we have a very weak correlation between the variables, therefore we will not create a regression model
+
+# Total depending on gender
+
+# Female
+new_data$Sex[new_data$Sex != "M"] = "Female"
+
+female_competitors <- filter(new_data,
+                               Sex == "Female")
+head(female_competitors)
+
+# Male 
+new_data$Sex[new_data$Sex == "M"] = "Male"
+male_competitors <- filter(new_data,
+                           Sex == "Male")
+
+head(male_competitors)
+
+length(female_competitors$Sex)
+length(female_competitors$TotalKg)
+length(male_competitors$Sex)
+length(male_competitors$TotalKg)
+
+data <- data.frame(
+  Sex = c(rep("Female", 363165), rep("Male", 1060189)),
+  Total = c(female_competitors$TotalKg, male_competitors$TotalKg)
+)
+
+data
+
+p <- data %>%
+  ggplot( aes(x=Total, fill=Sex)) +
+  geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity') +
+  theme_ipsum() + ggtitle("Total depending on gender")
+labs(fill="")
+print(p)
+
+summary(female_competitors$TotalKg)
+# Max total  = 930 kg
+summary(male_competitors$TotalKg)
+# Max total = 1367.5
+
+# Conclusion: women are much weaker than men.
