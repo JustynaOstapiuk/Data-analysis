@@ -155,8 +155,3 @@ plot(model, compress = TRUE)
 text(model, cex = 0.7, use.n = TRUE, fancy = FALSE, all = TRUE)
 
 summary(model)
-
-# tutaj znajduje sie opis drzew decyzyjnych jak je rozumiec 
-# http://zsi.tech.us.edu.pl/~nowak/ed/R_dd_as.pdf
-# nie bardzo wiem jak moglabym opisac te drzewo bo w zasadzie malo tu widac apropo wplywu zmiennych x na y 
-# dlatego model regresji liniowej bardzo ladnie opisywal te zaleznosc i to wlasnie ten model jest lepszy i jego powinnismy wybrac 
