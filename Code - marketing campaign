@@ -1,0 +1,160 @@
+# As part of a marketing campaign to increase customer spend and loyalty, company sent out coupons to 4000 buyers by post.
+# Each buyer received one coupon for $10 which they could spend on company website in a two week window between the 5th and 18th January 2019. 
+# Some buyers used their coupon to get money off their purchases in that time (Redeemers) and others chose not to (Non-Redeemers).
+# A third group of shoppers (Control) were not sent a coupon but will act as a benchmark as we assess whether the coupons successfully 
+# boosted customer spending as hoped.
+
+# Data:
+# User ID	- a unique identifier for each buyer 			
+# Group	"Control - Control group
+# Test - Test group				
+# Week - date dd/mm/yyyy				
+# Spend -	Spend on company website ($)			
+# Purchases	- Number of purchases on company website			
+
+install.packages("readxl")
+install.packages("dplyr")
+install.packages("lubridate")
+install.packages("ggplot2")
+
+# loading the data 
+library(readxl)
+data <- read_excel("C:/Users/Justyna/Desktop/Marketing campaign.xlsx")
+View(data)
+
+attach(data)
+
+# leaving only the necessary columns and renaming the first column
+library(dplyr)
+head(data)
+new_data <- subset(data,
+                   select=c(`User ID...1`, Group, Week, Spend, Purchases, Reedemers))
+detach(data)
+attach(new_data)
+
+colnames(new_data) <- c("User ID", "Group", "Week", "Spend", "Purchases", "Reedemers")
+head(new_data)
+
+# For each group (Control, Test-Redeemers, Test-NonRedeemers), 
+# show how spend varied over the 12 week period between 24th November 18 and 9th February 19.
+
+# dividing into group: 
+# Control
+new_data$Group[new_data$Group == "Control"] = "Control"
+
+control_group <- filter(new_data,
+                               Group == "Control")
+head(control_group)
+
+# Test group - Reedemers + Non-Reedemers
+new_data$Group[new_data$Group != "Control"] = "Test"
+test_group <- filter(new_data,
+                              Group == "Test")
+head(test_group)
+
+# Test-NonReedemers
+test_group$Reedemers[test_group$Reedemers != "Reedemers"] = "Non-Reedemers"
+test_group_non_reedemers <- filter(test_group,
+                     Reedemers == "Non-Reedemers")
+head(test_group_non_reedemers)
+
+# Test-Reedemers
+test_group$Reedemers[test_group$Reedemers == "Reedemers"] = "Reedemers"
+test_group_reedemers <- filter(test_group,
+                                   Reedemers == "Reedemers")
+head(test_group_reedemers)
+
+# show how spend varied over the 12 week period between 24th November 18 and 9th February 19 
+# (from 6 weeks before the coupon 'drop date' to 6 weeks after).
+
+# 2018-11-24 and 2019-2-18
+# Control group
+control_group$Week <- as.Date(control_group$Week, format= "%Y-%m-%d")
+
+library(lubridate)
+control_spend <- control_group %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2018-11-24"), as.Date("2019-02-18")))
+plot(control_spend)
+
+library(ggplot2)
+control_spend %>% 
+  group_by(Week) %>% 
+  summarise(mean_spend = mean(Spend)) %>% 
+  ggplot() + 
+  geom_area(aes(x = Week, y = mean_spend)) + 
+  labs(title = "Area Chart of Average Spend per Week",
+       subtitle = "using control group data",
+       y = "Mean spend")
+
+# Test-NonReedemers
+test_group_non_reedemers$Week <- as.Date(test_group_non_reedemers$Week, format= "%Y-%m-%d")
+
+test_non_spend <- test_group_non_reedemers %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2018-11-24"), as.Date("2019-02-18")))
+plot(test_non_spend)
+
+test_non_spend %>% 
+  group_by(Week) %>% 
+  summarise(mean_spend = mean(Spend)) %>% 
+  ggplot() + 
+  geom_area(aes(x = Week, y = mean_spend)) + 
+  labs(title = "Area Chart of Average Spend per Week",
+       subtitle = "using test_non_reedemers group data",
+       y = "Mean spend")
+
+# Test-Reedemers
+test_group_reedemers$Week <- as.Date(test_group_reedemers$Week, format= "%Y-%m-%d")
+
+test_spend <- test_group_reedemers %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2018-11-24"), as.Date("2019-02-18")))
+plot(test_spend)
+
+test_spend %>% 
+  group_by(Week) %>% 
+  summarise(mean_spend = mean(Spend)) %>% 
+  ggplot() + 
+  geom_area(aes(x = Week, y = mean_spend)) + 
+  labs(title = "Area Chart of Average Spend per Week",
+       subtitle = "using test_reedemers group data",
+       y = "Mean spend")
+
+# What is the incremental spend in the six weeks after the coupons
+# were sent (additional spend above what we would have expected had no 
+# coupon been sent out) for the total Test group (Redeemers and Non-Redeemers) vs. Control? 
+par(mfrow = c(3, 1))
+plot(control_spend)
+plot(test_non_spend)
+plot(test_spend)
+
+c_spend <- control_group %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2019-01-07"), as.Date("2019-02-18")))
+sum(c_spend$Spend)
+
+# Total expenses $ 357,771 in the control group
+
+t_spend <- test_group_reedemers %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2019-01-07"), as.Date("2019-02-18")))
+sum(t_spend$Spend)
+
+# Total expenses $ 561,262 in the test-reedemers group
+
+t_n_spend <- test_group_non_reedemers %>%
+  select(Week,Spend) %>%
+  filter(between(Week, as.Date("2019-01-07"), as.Date("2019-02-18")))
+sum(t_n_spend$Spend)
+# Total expenses $ 1,263,750 in the test-non-reedemers group
+
+# The difference between control group and test-reedemers group
+sum(c_spend$Spend)-sum(t_spend$Spend)
+# -203491 $
+# + 57% increase
+
+# The difference between control group and test-non-reedemers group
+sum(c_spend$Spend)-sum(t_n_spend$Spend) 
+# -905978.6 $ 
+# + 253% increase
