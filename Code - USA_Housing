@@ -2,7 +2,7 @@
 dane <- read.csv("C:/Users/Justyna/Downloads/USA_Housing.csv", header = T)
 head(dane)
 
-# dane pochodzą z tej strony https://www.kaggle.com/faressayah/linear-regression-house-price-prediction/?select=USA_Housing.csv
+# źródło danych: https://www.kaggle.com/faressayah/linear-regression-house-price-prediction/?select=USA_Housing.csv
 
 # populacja: rynek nieruchomo?ci w Stanach Zjednoczonych
 # zmienna obja?niana zale?na (y): cena sprzedanego domu 
