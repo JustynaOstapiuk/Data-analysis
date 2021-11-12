@@ -6,7 +6,7 @@ boxplot(dane$Runtime~dane$Genre, horizontal = T,
         xlab="Czas trwania filmu",
         ylab="Gatunek filmu")
 
-# 2. Ilosc filmww w danych jezykach 
+# 2. Ilosc filmów w danych jezykach 
 library(dplyr)
 library(ggplot2)
 jezyki <-dane%>%select(Language)%>%group_by(Language)%>%mutate(count=n())
